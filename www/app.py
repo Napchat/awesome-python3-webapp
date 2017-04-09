@@ -11,13 +11,6 @@ import asyncio,os,json,time
 from datetime import datetime
 
 from aiohttp import web
-from orm import Model,StringField,IntegerField
-
-class User(Model):
-	__table='users'
-	
-	id=IntegerField(primary_key=True)
-	name=StringField()
 	
 def index(request):
 	return web.Response(body=b'<h1>Awesome</h1>',content_type='text/html',charset='UTF-8')
