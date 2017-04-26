@@ -10,13 +10,11 @@ def log(sql, args=()):
 	"""打印SQL查询语句"""
 	logging.info('SQL: %s' % sql)
 
-
-@asyncio.coroutine                         #有装饰的generator就是一个协程
-def create_pool(loop,**kw):                #**kw为一个dict
+async def create_pool(loop,**kw):                #async开头就是一个协程,搭配await使用,**kw为一个dict
 	"""创建一个全局的连接池，每个HTTP请求都从池中获得数据库连接"""
 	logging.info('create database connection pool...')
 	global __pool                          #全局变量用于存储整个连接池
-	__pool=yield from aiomysql.create_pool(
+	__pool=await aiomysql.create_pool(
 		host=kw.get('host','localhost'),   #默认本机IP,get方法获取host对应的value，若不存在，赋为第二个参数
 		port=kw.get('port', 3306),
 		user=kw['user'],
