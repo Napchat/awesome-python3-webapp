@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+
+'''
+Models for user, blog, comment.
+'''
+
+__author__ = 'Shang Nan'
+
 import time, uuid
 
 from orm import Model, StringField, BooleanField, FloatField, TextField
