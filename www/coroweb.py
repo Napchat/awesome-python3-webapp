@@ -4,13 +4,19 @@ __author__='Shang Nan'
 
 import asyncio,os,inspect,logging,functools
 
+"""urlib
+This module defines a standard interface to break Uniform Resource Locator (URL) strings
+up in components (addressing scheme, network location, path etc.),
+to combine the components back into a URL string, and to convert
+a “relative URL” to an absolute URL given a “base URL.”
+"""
 from urllib import parse
 
 from aiohttp import web
 
 from apis import APIError
 
-def get(path):
+def get(path):                               #一个函数通过@get()的装饰就附带了URL信息
     '''Define decorator @get('/path')'''
     def decorator(func):
         @functools.wraps(func)
@@ -21,7 +27,7 @@ def get(path):
         return wrapper
     return decorator
 
-def post(path):
+def post(path):                              #类似get
     '''Define decorator @post('/path')'''
     def decorator(func):
         @functools.wraps(func)
@@ -34,7 +40,7 @@ def post(path):
 
 def get_required_kw_args(fn):
     args=[]
-    params=inspect.signature(fn).parameters
+    params=inspect.signature(fn).parameters   #获得函数fn的签名里的参数
     for name,param in params.items():
         if param.kind==inspect.Parameter.KEYWORD_ONLY and param.default==inspect.Parameter.empty:
             args.append(name)
@@ -72,18 +78,23 @@ def has_request_arg(fn):
             raise ValueError('request parameter must be the last named parameter in function: %s%s' % (fn.__name__, str(sig)))
     return found
 
-class RequestHandler(object):
-
+class RequestHandler(object):      #To encapsulate a URL-handling function
+    """
+    URL处理函数不一定是一个coroutine，因此我们用RequestHandler()来封装一个URL处理函数
+    从URL函数中分析其需要接收的参数，从request中获取必要的参数，调用URL函数，
+    然后把结果转换为web.Response对象，这样，就完全符合aiohttp框架的要求
+    """
     def __init__(self, app, fn):
         self._app = app
         self._func = fn
-        self._has_request_arg = has_request_arg(fn)
-        self._has_var_kw_arg = has_var_kw_arg(fn)
-        self._has_named_kw_args = has_named_kw_args(fn)
-        self._named_kw_args = get_named_kw_args(fn)
-        self._required_kw_args = get_required_kw_args(fn)
+        self._has_request_arg = has_request_arg(fn)          #是否有request参数
+        self._has_var_kw_arg = has_var_kw_arg(fn)            #是否有变长字典参数
+        self._has_named_kw_args = has_named_kw_args(fn)      #是否存在关键字参数
+        self._named_kw_args = get_named_kw_args(fn)          #所有关键字参数
+        self._required_kw_args = get_required_kw_args(fn)    #所有没有默认值的关键字参数
 
-    async def __call__(self, request):
+    async def __call__(self, request):          #由于定义了__call__()方法，因此可以将该类的实例视为函数
+        """URL-handling function"""
         kw = None
         if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:
             if request.method == 'POST':
@@ -106,10 +117,11 @@ class RequestHandler(object):
                     kw = dict()
                     for k, v in parse.parse_qs(qs, True).items():
                         kw[k] = v[0]
-        if kw is None:
+
+        if kw is None:                          #如果没有在GET或POST里取得参数，直接把match_info的所有参数提取到kw
             kw = dict(**request.match_info)
         else:
-            if not self._has_var_kw_arg and self._named_kw_args:
+            if not self._has_var_kw_arg and self._named_kw_args:     #如果没有变长字典参数且有关键字参数，把所有关键字参数提取出来，忽略所有变长字典参数
                 # remove all unamed kw:
                 copy = dict()
                 for name in self._named_kw_args:
@@ -117,14 +129,14 @@ class RequestHandler(object):
                         copy[name] = kw[name]
                 kw = copy
             # check named arg:
-            for k, v in request.match_info.items():
+            for k, v in request.match_info.items():         #把match_info的参数提取到kw，检查URL参数和HTTP方法得到的参数是否又重合
                 if k in kw:
                     logging.warning('Duplicate arg name in named arg and kw args: %s' % k)
                 kw[k] = v
-        if self._has_request_arg:
+        if self._has_request_arg:            #把request参数提取到kw
             kw['request'] = request
         # check required kw:
-        if self._required_kw_args:
+        if self._required_kw_args:           #检查没有默认值的关键字参数是否已赋值
             for name in self._required_kw_args:
                 if not name in kw:
                     return web.HTTPBadRequest('Missing argument: %s' % name)
