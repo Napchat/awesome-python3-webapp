@@ -48,7 +48,7 @@ def get_required_kw_args(fn):
 
 def get_named_kw_args(fn):
     args=[]
-    paras=inspect.signature(fn).parameters
+    params=inspect.signature(fn).parameters
     for name,param in params.items():
         if param.kind==inspect.Parameter.KEYWORD_ONLY:
             args.append(name)
