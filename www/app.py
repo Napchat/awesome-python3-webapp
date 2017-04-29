@@ -5,6 +5,7 @@ __author__='Shang Nan'
 '''
 async web application.
 '''
+
 import logging;logging.basicConfig(level=logging.INFO)
 
 import asyncio,os,json,time
@@ -12,16 +13,16 @@ from datetime import datetime
 
 import orm
 from models import User,Blog,Comment
-from corowebs import add_routes,add_static
+from coroweb import add_routes,add_static
 
 from aiohttp import web
-from jinja2 import Enviroment,FileSystemLoader
+from jinja2 import Environment,FileSystemLoader
 
 def init_jinja2(app,**kw):
 	logging.info('init jinja2...')
 	options=dict(
 		autoescape=kw.get('autoescape',True),
-		block_start_string=kw.get('block_start_string','{%'},
+		block_start_string=kw.get('block_start_string','{%'),
 		block_end_string = kw.get('block_end_string', '%}'),
 		variable_start_string = kw.get('variable_start_string', '{{'),
 		variable_end_string = kw.get('variable_end_string', '}}'),
@@ -38,11 +39,11 @@ def init_jinja2(app,**kw):
 			env.filters[name] = f
 	app['__templating__'] = env
 
-	async def logger_factory(app, handler):
+async def logger_factory(app, handler):
 	async def logger(request):
 		logging.info('Request: %s %s' % (request.method, request.path))
 		# await asyncio.sleep(0.3)
-			return (await handler(request))
+		return (await handler(request))
 	return logger
 
 async def data_factory(app, handler):
@@ -121,6 +122,6 @@ async def init(loop):
 	return srv
 
 loop=asyncio.get_event_loop()
-loop.run_until_complete(loop)
+loop.run_until_complete(init(loop))
 loop.run_forever()
 
