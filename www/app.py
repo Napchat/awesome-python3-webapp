@@ -111,8 +111,8 @@ def datetime_filter(t):
 
 async def init(loop):
 	await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='root', password='2291277', db='awesome')
-	u=User(name='Tessst',email='tessst@example.com',passwd='12385222379',image='about:blank')
-	await u.save()
+	#u=User(name='Tesssst',email='tess2st@example.com',passwd='123851222379',image='about:blank')
+	#await u.save()
 	app = web.Application(loop=loop, middlewares=[
 		logger_factory, response_factory
 	])
