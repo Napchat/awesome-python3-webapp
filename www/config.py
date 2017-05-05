@@ -16,7 +16,7 @@ class Dict(dict):
 			self[k]=v
 
 	def __getattr__(self,key):
-		try
+		try:
 			return self[key]
 		except:
 			raise AttributeError(r"'Dict' object has no attribute '%s'" % key)
