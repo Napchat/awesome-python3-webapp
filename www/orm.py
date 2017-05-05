@@ -28,16 +28,15 @@ async def create_pool(loop,**kw):                #async开头就是一个协程,
 		loop=loop                           #接受一个event_loop实例
 	)
 
-@asyncio.coroutine
-def destroy_pool():
+async def destroy_pool():
 	global __pool
 	if __pool is not None:
-		__pool.close()                     #关闭进程池,close()不是一个协程，不用yield from
-		yield from __pool.wait_close()     #wait_close()是一个协程
+		__pool.close()                #关闭进程池,close()不是一个协程，不用await
+		await __pool.wait_close()     #wait_close()是一个协程
 
 """知识点
-yield from将会调用一个子协程，并直接返回调用的结果
-yield from从连接池中返回一个连接，这个地方已经创建了进程池并和进程池连接了
+await将会调用一个子协程，并直接返回调用的结果
+await从连接池中返回一个连接，这个地方已经创建了进程池并和进程池连接了
 进程池的创建被封装到了create_pool(loop,**kw)
 with所求值的对象必须有一个__enter__()方法和一个 __exit__()方法
 紧跟with后面的语句被求值后，返回对象的__enter__()方法被调用，这个方法的返回值将被赋值给
@@ -256,9 +255,10 @@ class Model(dict, metaclass=ModelMetaclass):
 		return rs[0]['_num_']
 
 	@classmethod
-	async def find(cls, pk):
+	@asyncio.coroutine
+	def find(cls, pk):
 		"""find object by primary key"""
-		rs = await select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
+		rs = yield from select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
 		if len(rs) == 0:
 			return None
 		return cls(**rs[0])
