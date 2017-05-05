@@ -215,7 +215,8 @@ class Model(dict, metaclass=ModelMetaclass):
 	#类方法由类变量cls传入，从而可以用cls做一些相关的处理。并且有子类继承时，调用该方法时
 	#传入的类变量cls是子类，而非父类
 	@classmethod
-	async def findAll(cls, where=None, args=None, **kw):
+	@asyncio.coroutine
+	def findAll(cls, where=None, args=None, **kw):
 		"""find objects by where clause."""
 		sql = [cls.__select__]
 		if where:
@@ -238,7 +239,7 @@ class Model(dict, metaclass=ModelMetaclass):
 				args.extend(limit)
 			else:
 				raise ValueError('Invalid limit value: %s' % str(limit))
-		rs = await select(' '.join(sql), args)
+		rs = yield from select(' '.join(sql), args)
 		return [cls(**r) for r in rs]
 
 	@classmethod
