@@ -10,11 +10,12 @@ def log(sql, args=()):
 	"""打印SQL查询语句"""
 	logging.info('SQL: %s' % sql)
 
-async def create_pool(loop,**kw):                #async开头就是一个协程,搭配await使用,**kw为一个dict
+@asyncio.coroutine
+def create_pool(loop,**kw):                #async开头就是一个协程,搭配await使用,**kw为一个dict
 	"""创建一个全局的连接池，每个HTTP请求都从池中获得数据库连接"""
 	logging.info('create database connection pool...')
 	global __pool                          #全局变量用于存储整个连接池
-	__pool=await aiomysql.create_pool(
+	__pool=yield from aiomysql.create_pool(
 		host=kw.get('host','localhost'),   #默认本机IP,get方法获取host对应的value，若不存在，赋为第二个参数
 		port=kw.get('port', 3306),
 		user=kw['user'],
@@ -28,12 +29,6 @@ async def create_pool(loop,**kw):                #async开头就是一个协程,
 		loop=loop                           #接受一个event_loop实例
 	)
 
-async def destroy_pool():
-	global __pool
-	if __pool is not None:
-		__pool.close()                #关闭进程池,close()不是一个协程，不用await
-		await __pool.wait_close()     #wait_close()是一个协程
-
 """知识点
 await将会调用一个子协程，并直接返回调用的结果
 await从连接池中返回一个连接，这个地方已经创建了进程池并和进程池连接了
@@ -43,41 +38,45 @@ with所求值的对象必须有一个__enter__()方法和一个 __exit__()方法
 as后的变量，当with后面的代码块全部执行完之后，调用前面返回对象的__exit()__方法
 使用该语句的前提是已经创建了进程池，因为这句话是在函数定义里，所以可以这样用
 """
-async def select(sql,args,size=None):
+@asyncio.coroutine
+def select(sql,args,size=None):
 	"""封装SQL SELECT语句为select语句"""
+	log(sql, args)
 	global __pool
-	async with __pool.get() as conn:
-		async with conn.cursor(aiomysql.DictCursor) as cur:
-			await cur.execute(sql.replace('?','%s'), args or ())
-			if size:
-				rs=await cur.fetchmany(size)
-			else:
-				rs=await cur.fetchall()
+	with (yield from __pool) as conn:
+		cur = yield from conn.cursor(aiomysql.DictCursor)
+		yield from cur.execute(sql.replace('?','%s'), args or ())
+		if size:
+			rs=yield from cur.fetchmany(size)
+		else:
+			rs=yield from cur.fetchall()
+		yield from cur.close()
 		logging.info('rows returned: %s' % len(rs))
 		return rs
 
-async def execute(sql, args,autocommit=True):
+@asyncio.coroutine
+def execute(sql, args,autocommit=True):
 	"""
 	封装INSERT,UPDATE,DELETE
 	语句操作参数一样，所以定义一个通用的执行函数
 	返回操作影响的行号
 	"""
 	log(sql)
-	async with __pool.get() as conn:
+	with (yield from __pool) as conn:
 		if not autocommit:
-			await conn.begin()
+			yield from conn.begin()
 		try:
-			async with conn.cursor(aiomysql.DictCursor) as cur:
-				await cur.execute(sql.replace('?','%s'), args)
-				affected=cur.rowcount
+			cur = yield from conn.cursor()
+			yield from cur.execute(sql.replace('?', '%s'), args)
+			affected = cur.rowcount
+			yield from cur.close()
 			if not autocommit:
-				await conn.commit()
+				yield from conn.commit()
 		except BaseException as e:
 			if not autocommit:
-				await conn.rollback()
+				yield from conn.rollback()
 			raise
 		return affected
-
 
 def create_args_string(num):
 	"""

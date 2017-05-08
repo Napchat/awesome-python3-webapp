@@ -17,7 +17,7 @@ function initVM(blog) {
 			submit: function (event) {
 				event.preventDefault();
 				var $form = $('#vm').find('form');
-				$form.postJSON(action, this.$data, function (err, r) {
+				$form.postJSON(action, this.$data, function(err, r) {
 					if (err) {
 						$form.showFormError(err);
 					}
@@ -33,12 +33,9 @@ function initVM(blog) {
 
 $(function () {
 	if (ID) {
-		getJSON('/api/blogs/' + ID, function (err, blog) {
-			if (err) {
-				return fatal(err);
-			}
+		$.getJSON('/api/blogs/' + ID, function (blog, status) {
 			$('#loading').hide();
-			initVM(blog);
+			iniVM(blog);
 		});
 	}
 	else {
@@ -58,7 +55,7 @@ $(function () {
 {% block content %}
 
 	<div class="uk-width-1-1 uk-margin-bottom"></div>
-		<div class="uk-panel uk-panel-bok"></div>
+		<div class="uk-panel uk-panel-box"></div>
 			<ul class="uk-breadcrumb">
 				<li><a href="/manage/comments">评论</a></li>
 				<li><a href="/manage/blogs">日志</a></li>
