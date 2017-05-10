@@ -93,7 +93,8 @@ class RequestHandler(object):      #To encapsulate a URL-handling function
         self._named_kw_args = get_named_kw_args(fn)          #所有关键字参数
         self._required_kw_args = get_required_kw_args(fn)    #所有没有默认值的关键字参数
 
-    async def __call__(self, request):          #由于定义了__call__()方法，因此可以将该类的实例视为函数
+	@asyncio.coroutine
+    def __call__(self, request):          #由于定义了__call__()方法，因此可以将该类的实例视为函数
         """URL-handling function"""
         kw = None
         if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:
@@ -102,12 +103,12 @@ class RequestHandler(object):      #To encapsulate a URL-handling function
                     return web.HTTPBadRequest('Missing Content-Type.')
                 ct = request.content_type.lower()
                 if ct.startswith('application/json'):
-                    params = await request.json()
+                    params = yield from request.json()
                     if not isinstance(params, dict):
                         return web.HTTPBadRequest('JSON body must be object.')
                     kw = params
                 elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('multipart/form-data'):
-                    params = await request.post()
+                    params = yield from request.post()
                     kw = dict(**params)
                 else:
                     return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
@@ -153,6 +154,7 @@ def add_static(app):
     logging.info('add static %s => %s' % ('/static/', path))
 
 def add_route(app, fn):
+	'''注册URL处理函数'''
     method = getattr(fn, '__method__', None)
     path = getattr(fn, '__route__', None)
     if path is None or method is None:
@@ -163,9 +165,11 @@ def add_route(app, fn):
     app.router.add_route(method, path, RequestHandler(app, fn))
 
 def add_routes(app, module_name):
+	'''自动将所有URL处理函数注册'''
+	# 首先导入模块
     n = module_name.rfind('.')
     if n == (-1):
-        mod = __import__(module_name, globals(), locals())
+        mod = __import__(module_name, globals(), locals())				#动态加载模块
     else:
         name = module_name[n+1:]
         mod = getattr(__import__(module_name[:n], globals(), locals(), [name]), name)
