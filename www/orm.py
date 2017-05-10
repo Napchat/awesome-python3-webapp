@@ -1,6 +1,16 @@
 # -*- coding: utf-8 -*-
 
-__author__='Shang Nan'
+__author__ = 'Shang Nan'
+
+'''
+Web App里面有很多地方都要访问数据库。访问数据库需要创建数据连接、游标对象，
+然后执行SQL语句，最后处理异常，清理资源。这些访问数据库的代码如果分散到各个函数中，
+势必无法维护，也不利于代码复用。
+
+所以，我们需要把常用的SELECT、INSERT、UPDATE和DELETE操作用函数封装起来。
+
+aiomysql为MySQL数据库提供了异步IO的驱动。
+'''
 
 import asyncio,logging
 
@@ -11,51 +21,59 @@ def log(sql, args=()):
 	logging.info('SQL: %s' % sql)
 
 @asyncio.coroutine
-def create_pool(loop,**kw):                #async开头就是一个协程,搭配await使用,**kw为一个dict
-	"""创建一个全局的连接池，每个HTTP请求都从池中获得数据库连接"""
+def create_pool(loop, **kw):                #一个协程,搭配yield from使用,**kw为一个dict
+	"""
+	创建一个全局的连接池，每个HTTP请求都从池中获得数据库连接
+	连接池不必频繁地打开和关闭数据库连接，能复用就尽量复用
+	"""
 	logging.info('create database connection pool...')
-	global __pool                          #全局变量用于存储整个连接池
-	__pool=yield from aiomysql.create_pool(
-		host=kw.get('host','localhost'),   #默认本机IP,get方法获取host对应的value，若不存在，赋为第二个参数
-		port=kw.get('port', 3306),
-		user=kw['user'],
-		password=kw['password'],
-		db=kw['db'],
-		charset=kw.get('charset', 'utf8'),
-		autocommit=kw.get('autocommit', True),  #默认自动提交事务，不用手动去提交事务
-		maxsize=kw.get('maxsize', 10),
-		minsize=kw.get('minsize', 1),
+	global __pool										#全局变量用于存储整个连接池
+	__pool = yield from aiomysql.create_pool(
+		host = kw.get('host', 'localhost'),   			#默认本机IP,get方法获取host对应的value，若不存在，赋为第二个参数
+		port = kw.get('port', 3306),
+		user = kw['user'],
+		password = kw['password'],
+		db = kw['db'],
+		charset = kw.get('charset', 'utf8'),
+		autocommit = kw.get('autocommit', True),	    #默认自动提交事务，不用手动去提交事务
+		maxsize = kw.get('maxsize', 10),
+		minsize = kw.get('minsize', 1),
 
-		loop=loop                           #接受一个event_loop实例
+		loop = loop                         	        #接受一个event_loop实例
 	)
 
+	
 """知识点
-await将会调用一个子协程，并直接返回调用的结果
-await从连接池中返回一个连接，这个地方已经创建了进程池并和进程池连接了
+如果用async和await，那么所有被await和调用await的函数都要用async修饰，yield from同理
+yield from将会调用一个子协程，并直接返回调用的结果
+yield form从连接池中返回一个连接，这个地方已经创建了进程池并和进程池连接了
+
 进程池的创建被封装到了create_pool(loop,**kw)
 with所求值的对象必须有一个__enter__()方法和一个 __exit__()方法
 紧跟with后面的语句被求值后，返回对象的__enter__()方法被调用，这个方法的返回值将被赋值给
 as后的变量，当with后面的代码块全部执行完之后，调用前面返回对象的__exit()__方法
 使用该语句的前提是已经创建了进程池，因为这句话是在函数定义里，所以可以这样用
 """
+
 @asyncio.coroutine
-def select(sql,args,size=None):
+def select(sql, args, size=None):
 	"""封装SQL SELECT语句为select语句"""
 	log(sql, args)
 	global __pool
 	with (yield from __pool) as conn:
-		cur = yield from conn.cursor(aiomysql.DictCursor)
-		yield from cur.execute(sql.replace('?','%s'), args or ())
-		if size:
-			rs=yield from cur.fetchmany(size)
+		cur = yield from conn.cursor(aiomysql.DictCursor)              #括号里的参数使返回的rs成为一个字典
+		yield from cur.execute(sql.replace('?','%s'), args or ())      #执行sql语句，SQL语句占位符为?, 而MySQL占位符为%s
+		# 获取执行sql的结果并返回
+		if size:													   
+			rs = yield from cur.fetchmany(size)
 		else:
-			rs=yield from cur.fetchall()
+			rs = yield from cur.fetchall()
 		yield from cur.close()
 		logging.info('rows returned: %s' % len(rs))
-		return rs
+		return rs														#返回结果集
 
 @asyncio.coroutine
-def execute(sql, args,autocommit=True):
+def execute(sql, args, autocommit=True):
 	"""
 	封装INSERT,UPDATE,DELETE
 	语句操作参数一样，所以定义一个通用的执行函数
@@ -76,7 +94,7 @@ def execute(sql, args,autocommit=True):
 			if not autocommit:
 				yield from conn.rollback()
 			raise
-		return affected
+		return affected											#返回结果数
 
 def create_args_string(num):
 	"""
@@ -141,9 +159,9 @@ class ModelMetaclass(type):
 	# __new__控制__init__的执行，所以在其执行之前
 	# cls:代表要__init__的类，此参数在实例化时由Python解释器自动提供(例如下文的User和Model)
 	# bases：代表继承父类的集合
-	# attrs：类的方法集合
+	# attrs：类的方法集合,列表？
 	def __new__(cls, name, bases, attrs):
-		if name=='Model':       #排除Model,要排除对model类的修改
+		if name == 'Model':       #排除Model,要排除对model类的修改
 			return type.__new__(cls, name, bases, attrs)
 		tableName = attrs.get('__table__', None) or name      #获取table名词如果存在表名，则返回表名，否则返回name
 		logging.info('found model: %s (table: %s)' % (name, tableName))
@@ -178,7 +196,7 @@ class ModelMetaclass(type):
 		attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
 		return type.__new__(cls, name, bases, attrs)
 
-"""定义ORM所有映射的基类：Model
+"""
 Model类的任意子类可以映射一个数据库表
 Model类可以看作是对所有数据库表操作的基本定义的映射
 基于字典查询形式
@@ -186,6 +204,7 @@ Model从dict继承，拥有字典的所有功能，同时实现特殊方法__get
 实现数据库操作的所有方法，定义为class方法，所有继承自Model都具有数据库操作方法
 """
 class Model(dict, metaclass=ModelMetaclass):
+	'''定义ORM所有映射的基类：Model'''
 	def __init__(self, **kw):
 		super(Model, self).__init__(**kw)
 	def __getattr__(self, key):
@@ -193,7 +212,6 @@ class Model(dict, metaclass=ModelMetaclass):
 			return self[key]
 		except KeyError:
 			raise AttributeError(r"'Model' object has no attribute '%s'" % key)
-
 	def __setattr__(self, key, value):
 		self[key] = value
 
@@ -212,11 +230,12 @@ class Model(dict, metaclass=ModelMetaclass):
 
 	#类方法由类变量cls传入，从而可以用cls做一些相关的处理。并且有子类继承时，调用该方法时
 	#传入的类变量cls是子类，而非父类
+	#参数有self的都是实例方法，而类方法要使用metaclass中设定的类变量class
 	@classmethod
 	@asyncio.coroutine
 	def findAll(cls, where=None, args=None, **kw):
 		"""find objects by where clause."""
-		sql = [cls.__select__]
+		sql = [cls.__select__]                   #sql为一个列表，最后再组装成一个string
 		if where:
 			sql.append('where')
 			sql.append(where)
@@ -242,13 +261,13 @@ class Model(dict, metaclass=ModelMetaclass):
 
 	@classmethod
 	@asyncio.coroutine
-	def findnumber(cls,selectField,where=None,args=None):
+	def findnumber(cls, selectField, where=None, args=None):
 		"""find number by select and where."""
-		sql=['select %s _num_ from `%s`' % (selectField,cls.__table__)]
+		sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)]
 		if where:
 			sql.append('where')
 			sql.append(where)
-		rs=yield from select(' '.join(sql),args,1)
+		rs = yield from select(' '.join(sql),args,1)
 		if len(rs) == 0:
 			return None
 		return rs[0]['_num_']
