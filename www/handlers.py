@@ -74,12 +74,15 @@ def index(request, *, page='1'):
 	page_index = get_page_index(page)
 	num = yield from Blog.findnumber('count(id)')
 	page = Page(num)
-	summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+	blogs = yield from Blog.findAll(orderBy='created_at', limit=(page.offset, page.limit + num % page.limit))
+	'''summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
 	blogs = [
 		Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
 		Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
 		Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
-	]
+	]'''
+	if num == 0:
+		return dict(page=page, items=[])
 	return {
 		'__template__': 'blogs.html',
 		'blogs': blogs,
@@ -145,6 +148,10 @@ def signout(request):
 	logging.info('user signed out.')
 	return r
 
+@get('/manage/')
+def manage():
+	return 'redirect:/manage/comments'
+
 @get('/manage/blogs/create')
 def manage_create_blog():
 	return {
@@ -159,6 +166,13 @@ def manage_blogs(*, page='1'):
 		'__template__': 'manage_blogs.html',
 		'page_index': get_page_index(page)
 	}
+
+@post('/api/blogs/{id}/delete')
+def api_delete_blogs(request, *, id):
+	check_admin(request)
+	blog = yield from Blog.find(id)
+	yield from blog.remove()
+	return dict(id=id)
 
 @get('/api/users')
 def api_get_users():
