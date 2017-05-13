@@ -153,6 +153,13 @@ def manage_create_blog():
 		'action': '/api/blogs'
 	}
 
+@get('/manege/blogs')
+def manage_blogs(*, page='1'):
+	return {
+		'__template__': 'manage_blogs.html',
+		'page_index': get_page_index(page)
+	}
+
 @get('/api/users')
 def api_get_users():
 	users = yield from User.findAll(orderBy='created_at desc')
@@ -188,6 +195,16 @@ def api_register_user(*, email, name, passwd):
 def api_get_blog(*, id):
 	blog = yield from Blog.find(id)
 	return blog
+
+@get('/api/blogs')
+def api_blogs(*, page='1'):
+	page_index = get_page_index(page)
+	num = yield from Blog.findNumber('count(id)')
+	p = Page(num, page_index)
+	if num == 0:
+		return dict(page=p, blogs=())
+	blogs = yield from Blog.findAll(orderBy='created_at_desc', limit=(p.offset, p.limit))
+	return dict(page=p, blogs=blogs)
 
 @post('/api/blogs')
 def api_create_blog(request, *, name, summary, content):

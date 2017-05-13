@@ -33,9 +33,12 @@ function initVM(blog) {
 
 $(function () {
 	if (ID) {
-		$.getJSON('/api/blogs/' + ID, function (blog, status) {
+		getJSON('/api/blogs/' + ID, function (err, blog) {
+			if (err) {
+				return fatal(err);
+			}
 			$('#loading').hide();
-			iniVM(blog);
+			initVM(blog);
 		});
 	}
 	else {
