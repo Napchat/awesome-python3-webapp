@@ -23,6 +23,8 @@
 	<title>{% block title %} ? {% endblock %} - Awesome Python Webapp</title>
 	<link rel="stylesheet" href="/static/css/uikit.min.css">
 	<link rel="stylesheet" href="/static/css/uikit.gradient.min.css">
+	<link rel="stylesheet" href="/static/css/uikit.almost-flat.css">
+	<link rel="stylesheet" href="/static/css/components/sticky.min.css">
 	<link rel="stylesheet" href="/static/css/awesome.css" />
 	<script src="/static/js/jquery.min.js"></script>
 	<script src="/static/js/sha1.min.js"></script>
@@ -30,6 +32,7 @@
 	<script src="/static/js/sticky.min.js"></script>
 	<script src="/static/js/vue.min.js"></script>
 	<script src="/static/js/awesome.js"></script>
+	<script src="/static/js/uikit.js"></script>
 	{% block beforehead %}<!-- before head  -->{% endblock %}
 </head>
 <body>
@@ -48,6 +51,7 @@
 						<a href="#0"><i class="uk-icon-user"></i> {{ __user__.name }}</a>
 						<div class="uk-dropdown uk-dropdown-navbar">
 							<ul class="uk-nav uk-nav-navbar">
+								<li><a href="/manage/blogs"><i class="uk-icon-manage-blogs"></i>管理日志</a></li>
 								<li><a href="/signout"><i class="uk-icon-sign-out"></i> 登出</a></li>
 							</ul>
 						</div>

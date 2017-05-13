@@ -153,7 +153,7 @@ def manage_create_blog():
 		'action': '/api/blogs'
 	}
 
-@get('/manege/blogs')
+@get('/manage/blogs')
 def manage_blogs(*, page='1'):
 	return {
 		'__template__': 'manage_blogs.html',
@@ -199,11 +199,11 @@ def api_get_blog(*, id):
 @get('/api/blogs')
 def api_blogs(*, page='1'):
 	page_index = get_page_index(page)
-	num = yield from Blog.findNumber('count(id)')
+	num = yield from Blog.findnumber('count(id)')
 	p = Page(num, page_index)
 	if num == 0:
 		return dict(page=p, blogs=())
-	blogs = yield from Blog.findAll(orderBy='created_at_desc', limit=(p.offset, p.limit))
+	blogs = yield from Blog.findAll(orderBy='created_at', limit=(p.offset, p.limit))
 	return dict(page=p, blogs=blogs)
 
 @post('/api/blogs')
