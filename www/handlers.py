@@ -89,6 +89,7 @@ def index(request, *, page='1'):
 
 @get('/blog/{id}')
 def get_blog(id):
+	'''主页'''
 	blog = yield from Blog.find(id)
 	comments = yield from Comment.findAll('blog_id=?', [id], orderBy='created_at desc')
 	for c in comments:
