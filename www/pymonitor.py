@@ -12,6 +12,7 @@ class MyFileSystemEventHander(FileSystemEventHandler):
 
 	def __init__(self, fn):
 		super(MyFileSystemEventHander, self).__init__()
+		super().__init__()
 		self.restart = fn
 
 	def on_any_event(self, event):
