@@ -75,12 +75,6 @@ def index(request, *, page='1'):
 	num = yield from Blog.findnumber('count(id)')
 	page = Page(num)
 	blogs = yield from Blog.findAll(orderBy='created_at', limit=(page.offset, page.limit + num % page.limit))
-	'''summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
-	blogs = [
-		Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
-		Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
-		Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
-	]'''
 	if num == 0:
 		return dict(page=page, items=[])
 	return {
@@ -167,11 +161,67 @@ def manage_blogs(*, page='1'):
 		'page_index': get_page_index(page)
 	}
 
+@get('/manage/comments')
+def manage_comments(*, page='1'):
+	return{
+		'__template__': 'manage_comments.html',
+		'page_index': get_page_index(page)
+	}
+
+@get('/manage/blogs/edit')
+def manage_edit_blog(*,id):
+	return{
+		'__template__': 'manage_blog_edit.html',
+		'id': id,
+		'action': '/api/blogs/%s' % id
+	}
+
+@get('/manage/users')
+def manage_users(*, page='1'):
+	return{
+		'__template__': 'manage_users.html',
+		'page_index': get_page_index(page)
+	}
+
+@get('/api/comments')
+def api_comments(*, page='1'):
+	page_index = get_page_index(page)
+	num = yield from Comment.findnumber('count(id)')
+	p = Page(num, page_index)
+	if num == 0:
+		return dict(page=p, comments=())
+	comments = yield from Comment.findAll(orderBy='created_at', limit=(p.offset, p.limit))
+	return dict(page=p, comments=comments)
+
+@post('/api/blogs/{id}/comments')
+def api_create_comment(id, request, *, content):
+	user = request.__user__
+	if user is None:
+		raise APIPermissionError('Please signin first.')
+	if not content or not content.strip():
+		raise APIValueError('content')
+	blog = yield from Blog.find(id)
+	if blog is None:
+		raise APIResourceNotFoundError('Blog')
+	comment = Comment(blog_id=blog.id, user_id=user.id, user_name=user.name, user_image=user.image, \
+					content=content.strip())
+	yield from comment.save()
+	return comment
+
 @post('/api/blogs/{id}/delete')
 def api_delete_blogs(request, *, id):
 	check_admin(request)
 	blog = yield from Blog.find(id)
 	yield from blog.remove()
+	return dict(id=id)
+
+@post('/api/comments/{id}/delete')
+def api_delete_comment(id, request):
+	check_admin(request)
+	c = yield from Comment.find(id)
+	if c is None:
+		raise ApiResourceNotFoundError('Comment')
+	yield from c.remove()
 	return dict(id=id)
 
 @get('/api/users')
