@@ -284,3 +284,19 @@ def api_create_blog(request, *, name, summary, content):
 				content=content.strip())
 	yield from blog.save()
 	return blog
+
+@post('/api/blogs/{id}')
+def api_update_blog(id, request, *, name, summary, content):
+	check_admin(request)
+	blog = yield from Blog.find(id)
+	if not name or not name.strip():
+		raise APIValueError('name', 'name cannot be empty.')
+	if not summary or not summary.strip():
+		raise APIValueError('summary', 'summary cannot be empty.')
+	if not content or not content.strip():
+		raise APIValueError('content', 'content cannot be empty.')
+	blog.name = name.strip()
+	blog.summary = summary.strip()
+	blog.content = content.strip()
+	yield from blog.update()
+	return blog
