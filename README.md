@@ -1,4 +1,5 @@
 awesome-python3-webapp
 ========================
 
-* practical using of python
+# A personal webapp development log using Python 
+# I will be glad to see people come to help me and give me advices.
