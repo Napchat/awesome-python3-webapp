@@ -67,7 +67,6 @@ def auth_factory(app, handler):
 
 @asyncio.coroutine
 def data_factory(app, handler):
-
 	@asyncio.coroutine
 	def parse_data(request):
 		if request.method == 'POST':
@@ -84,6 +83,7 @@ def data_factory(app, handler):
 def response_factory(app, handler):
 	@asyncio.coroutine
 	def response(request):
+		'''处理handler返回的数据为web.response对象'''
 		logging.info('Response handler...')
 		r = yield from handler(request)
 		if isinstance(r, web.StreamResponse):
@@ -137,6 +137,7 @@ def datetime_filter(t):
 @asyncio.coroutine
 def init(loop):
 	yield from orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='root', password='2291277', db='awesome')
+	# 创建aiohttp server, loop为Eventloop用来请求HTTP请求,
 	app = web.Application(loop=loop, middlewares=[
 		logger_factory, auth_factory, response_factory
 	])

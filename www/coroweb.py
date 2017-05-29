@@ -149,6 +149,7 @@ class RequestHandler(object):      #To encapsulate a URL-handling function
 			return dict(error=e.error, data=e.data, message=e.message)
 
 def add_static(app):
+	'''处理如图案等静态资源'''
 	path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 	app.router.add_static('/static/', path)
 	logging.info('add static %s => %s' % ('/static/', path))
@@ -169,15 +170,15 @@ def add_routes(app, module_name):
 	# 首先导入模块
 	n = module_name.rfind('.')
 	if n == (-1):
-		mod = __import__(module_name, globals(), locals())				#动态加载模块
+		mod = __import__(module_name, globals(), locals())				#动态加载模块,包含module_name模块中全部属性和方法的list
 	else:
 		name = module_name[n+1:]
 		mod = getattr(__import__(module_name[:n], globals(), locals(), [name]), name)
-	for attr in dir(mod):
+	for attr in dir(mod):       #获取mod模块内的所有属性的名字，组成一个列表
 		if attr.startswith('_'):
 			continue
 		fn = getattr(mod, attr)
-		if callable(fn):
+		if callable(fn):     #是否可以调用
 			method = getattr(fn, '__method__', None)
 			path = getattr(fn, '__route__', None)
 			if method and path:
